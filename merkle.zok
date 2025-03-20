@@ -1,0 +1,21 @@
+import "hashes/sha256/512bitPadded" as sha256;
+
+const u32 DEPTH = 7;
+
+def select(bool condition, u32[8] left, u32[8] right) -> (u32[8], u32[8]) {
+	return (condition ? right : left, condition ? left : right);
+}
+
+def main(u32[8] root, private u32[8] leaf, private bool[DEPTH] directionSelector, private u32[DEPTH][8] path) {
+    // Start from the leaf
+    u32[8] mut digest = leaf;
+
+	// Loop up the tree
+	for u32 i in 0..DEPTH {
+		(u32[8], u32[8]) s = select(directionSelector[i], digest, path[i]);
+		digest = sha256(s.0, s.1);
+	}
+
+    assert(digest == root);
+	return;
+}
