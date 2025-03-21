@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}注册{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <h1 class="title">创建账户</h1>
+
+    {% if error %}
+    <div class="alert alert-error">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <div id="register-form">
+        <form id="registration-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- 用户名输入框 -->
+            <div class="form-group">
+                <div class="input-container">
+                    <input type="text" name="username" placeholder=" " autocomplete="off" required class="input-field"
+                        id="username-input">
+                    <label for="username-input" class="input-label">用户名</label>
+                    <div class="input-border"></div>
+                </div>
+            </div>
+
+            <!-- 密码输入框 -->
+            <div class="form-group">
+                <div class="input-container">
+                    <input type="password" name="password" placeholder=" " autocomplete="off" required
+                        class="input-field" id="password-input">
+                    <label for="password-input" class="input-label">密码</label>
+                    <div class="input-border"></div>
+                </div>
+            </div>
+
+            <!-- 性别选择框 -->
+            <div class="form-group">
+                <div class="input-container">
+                    <select name="gender" class="input-field" id="gender-input" required>
+                        <option value="" disabled selected> </option>
+                        <option value="male">男</option>
+                        <option value="female">女</option>
+                        <option value="other">其他</option>
+                    </select>
+                    <label for="gender-input" class="input-label">性别</label>
+                    <div class="input-border"></div>
+                </div>
+            </div>
+
+            <!-- 出生日期输入框 -->
+            <div class="form-group">
+                <div class="input-container">
+                    <input type="date" name="birthdate" placeholder=" " class="input-field" id="birthdate-input"
+                        required>
+                    <label for="birthdate-input" class="input-label">出生日期</label>
+                    <div class="input-border"></div>
+                </div>
+            </div>
+
+            <button type="submit" class="button button-primary" id="register-button">
+                立即注册
+            </button>
+        </form>
+    </div>
+
+    <div id="generating-message" style="display: none;">
+        <div class="alert alert-info">
+            登录令牌生成中...
+        </div>
+    </div>
+
+    <div id="download-section" style="display: none;">
+        <div class="alert alert-success">
+            注册成功！请立即下载令牌
+        </div>
+
+        <button onclick="downloadToken()" class="button button-primary" id="download-button">
+            ⬇ 下载令牌文件
+        </button>
+
+        <div class="divider">
+            <span>已保存？</span>
+            <a href="{{ url_for('login') }}" class="login-link">前往登录</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('registration-form').addEventListener('submit', async function (event) {
+        event.preventDefault();  // 阻止表单默认提交行为
+
+        // 禁用注册按钮
+        const registerButton = document.getElementById('register-button');
+        registerButton.disabled = true;
+        registerButton.textContent = '注册中...';
+
+        // 显示“生成中”消息
+        document.getElementById('register-form').style.display = 'none';
+        document.getElementById('generating-message').style.display = 'block';
+
+        // 获取表单数据
+        const formData = new FormData(event.target);
+        const data = {};
+        formData.forEach((value, key) => {
+            data[key] = value;
+        });
+
+        try {
+            // 发送异步请求
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': data.csrf_token
+                },
+                body: new URLSearchParams(data).toString()
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // 显示下载部分
+                document.getElementById('generating-message').style.display = 'none';
+                document.getElementById('download-section').style.display = 'block';
+
+                // 设置下载令牌的函数
+                window.downloadToken = function () {
+                    const blob = new Blob([result.token_content], { type: 'text/plain' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = result.filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                };
+            } else {
+                // 显示错误消息
+                alert(result.error || '注册失败，请重试');
+                location.reload();  // 重新加载页面
+            }
+        } catch (error) {
+            console.error('注册失败:', error);
+            alert('注册失败，请重试');
+            location.reload();  // 重新加载页面
+        }
+    });
+</script>
+{% endblock %}

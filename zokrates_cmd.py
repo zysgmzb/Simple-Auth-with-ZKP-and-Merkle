@@ -1,6 +1,7 @@
 import subprocess
 import json
 import os
+import untils
 
 
 def setup(filename):
@@ -18,9 +19,15 @@ def setup(filename):
         return None
 
 
-def generate_proof(inputs, userid):
+def generate_proof(root, leaf, direction, path, userid):
     outfilename = f"userid_{userid}_proof.json"
     try:
+        inputs = []
+        inputs += untils.convert_u256_to_u32_list(int(root, 16))
+        inputs += untils.convert_u256_to_u32_list(int(leaf, 16))
+        inputs += direction
+        for i in range(7):
+            inputs += untils.convert_u256_to_u32_list(int(path[i], 16))
         args = ["zokrates", "compute-witness", "-a"] + [str(i) for i in inputs]
         subprocess.run(args, check=True)
 

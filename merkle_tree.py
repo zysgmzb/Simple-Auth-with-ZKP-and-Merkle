@@ -22,7 +22,7 @@ class MerkleTree:
         if index < 0 or index > 127:
             return False
         if self.check_leaf(leaf):
-            self.tree[index+127] = leaf
+            self.tree[index+127] = leaf.lower()
             self.update_tree()
             return True
 
@@ -37,3 +37,13 @@ class MerkleTree:
             path[i] = self.tree[neighbor_place + 2**(7-i) - 1]
             index //= 2
         return self.tree[0], leaf, direction, path
+
+    def get_merkle_root(self):
+        return self.tree[0]
+
+    def find_leaf_index(self, leaf):
+        if self.check_leaf(leaf):
+            for i in range(127):
+                if self.tree[i+127] == leaf:
+                    return i
+        return -1

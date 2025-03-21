@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}仪表盘{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <h1 class="title">仪表盘</h1>
+
+    <div style="text-align: center;">
+        <div style="
+            background: #e0f2fe;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        ">
+            <div style="color: #0c4a6e; font-size: 0.9rem;">
+                <p>用户 ID: <code>{{ user_id }}</code></p>
+                <p>用户名: <code>{{ username }}</code></p>
+            </div>
+        </div>
+
+        <a href="{{ url_for('logout') }}" class="button" style="background: #fef2f2; color: #dc2626;">
+            安全退出
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -13,12 +13,12 @@ root, leaf, direction, path = test_tree.generate_proof_path_and_direction(1)
 # zokrates_cmd.setup("merkle.zok")
 # print(path)
 # print(test_tree.tree)
-input = []
+"""input = []
 input += untils.convert_u256_to_u32_list(int(root, 16))
 input += untils.convert_u256_to_u32_list(int(leaf, 16))
 input += direction
 for i in range(7):
-    input += untils.convert_u256_to_u32_list(int(path[i], 16))
-zokrates_cmd.generate_proof(input, 1)
+    input += untils.convert_u256_to_u32_list(int(path[i], 16))"""
+zokrates_cmd.generate_proof(root, leaf, direction, path, 1)
 # will not fail if proof success
 print(untils.generate_user_key_format(1, user2_pass))

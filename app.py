@@ -1,112 +1,142 @@
-from nicegui import app, ui
-import hashlib
-import json
+from flask import Flask, redirect, url_for, render_template, request, session, send_file, jsonify
+from flask_wtf.csrf import CSRFProtect
 import os
 import zokrates_cmd
+import untils
+import user_manager
+import merkle_tree
+import hashlib
+import onchain_verify
 
-USER_DATA_FILE = "users.json"
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
+app.config['WTF_CSRF_ENABLED'] = True
+csrf = CSRFProtect(app)
 
-if os.path.exists(USER_DATA_FILE):
-    with open(USER_DATA_FILE, "r") as f:
-        app.storage.general["users"] = json.load(f)
-else:
-    app.storage.general["users"] = {}
-
-
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
-
-
-@ui.page('/register')
-def register_page():
-    ui.label("用户注册").classes("text-h4")
-    username = ui.input("用户名").classes("w-64")
-    password = ui.input("密码", password=True).classes("w-64")
-    confirm_password = ui.input("确认密码", password=True).classes("w-64")
-    error = ui.label("").classes("text-red-500")
-
-    def submit():
-        if not username.value or not password.value:
-            error.text = "用户名和密码不能为空"
-            return
-
-        if password.value != confirm_password.value:
-            error.text = "两次输入密码不一致"
-            return
-
-        if username.value in app.storage.general["users"]:
-            error.text = "用户名已存在"
-            return
-
-        # 保存哈希后的密码
-        app.storage.general["users"][username.value] = {
-            "password_hash": hash_password(password.value)
-        }
-        save_users()  # 持久化到文件
-        ui.notify("注册成功！")
-        ui.navigate.to("/login")
-
-    ui.button("注册", on_click=submit).classes("w-32")
-
-# 登录页面
+Users = user_manager.UserManager()
+MerkleTree = merkle_tree.MerkleTree()
 
 
-@ui.page('/login')
-def login_page():
-    ui.label("用户登录").classes("text-h4")
-    username = ui.input("用户名").classes("w-64")
-    password = ui.input("密码", password=True).classes("w-64")
-    error = ui.label("").classes("text-red-500")
-
-    def submit():
-        user_data = app.storage.general["users"].get(username.value)
-        if not user_data:
-            error.text = "用户名不存在"
-            return
-
-        if hash_password(password.value) != user_data["password_hash"]:
-            error.text = "密码错误"
-            return
-
-        # 设置用户会话
-        app.storage.user.update({
-            "authenticated": True,
-            "username": username.value
-        })
-        ui.navigate.to("/dashboard")
-
-    ui.button("登录", on_click=submit).classes("w-32")
-    ui.button("注册", on_click=lambda: ui.navigate.to(
-        "/register")).classes("w-32")
-
-# 主页（需要登录）
+@app.route('/')
+def index():
+    return redirect(url_for('login'))
 
 
-@ui.page('/dashboard')
-def main_page():
-    if not app.storage.user.get("authenticated"):
-        ui.navigate.to("/login")
-        return
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        if 'token_file' not in request.files:
+            return render_template('login.html', error='请选择令牌文件')
 
-    # 显示用户信息
-    ui.label(f"欢迎回来，{app.storage.user['username']}!").classes("text-h4")
+        if 'password' not in request.form:
+            return render_template('login.html', error='请输入密码')
 
-    # 注销按钮
-    def logout():
-        app.storage.user.clear()
-        ui.navigate.to("/login")
-    ui.button("注销", on_click=logout).classes("w-32")
+        file = request.files['token_file']
+        password = request.form['password']
 
-# 保存用户数据到文件
+        if not file.filename.endswith('.zys'):
+            return render_template('login.html', error='只能上传 .zys 文件')
+
+        if file.filename == '':
+            return render_template('login.html', error='无效的文件')
+
+        try:
+            token = file.read().decode('utf-8').strip()
+            assert untils.check_format(token)
+            abc, inputs = untils.decode_user_proof(token, password)
+            assert onchain_verify.verify(abc, inputs)
+            user_root = untils.convert_u32_list_to_u256(inputs)
+            user_root = hex(user_root)[2:].zfill(64)
+            login_user = Users.get_user_by_root(user_root)
+            session['userid'] = login_user.user_id
+            session['username'] = login_user.username
+            return redirect(url_for('dashboard'))
+
+        except Exception as e:
+            print(f"登录失败: {e}")
+            return render_template('login.html', error='无效的令牌或密码')
+
+    return render_template('login.html')
 
 
-def save_users():
-    with open(USER_DATA_FILE, "w") as f:
-        json.dump(app.storage.general["users"], f)
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            username = request.form.get('username', '').strip()
+            gender = request.form.get('gender', '').strip()
+            birth = request.form.get('birthdate', '').strip()
+            password = request.form.get('password', '').strip()
+
+            if not username or not gender or not birth or not password:
+                return jsonify({'success': False, 'error': '请填写完整'})
+
+            user_num_now = Users.user_num
+            user_hash = hashlib.sha256(
+                f'{user_num_now}{username}{gender}{birth}'.encode()).hexdigest()
+            MerkleTree.update_leaf(user_num_now, user_hash)
+            root_now = MerkleTree.get_merkle_root()
+            Users.register(username, gender, birth, root_now, password)
+            root, leaf, direction, path = MerkleTree.generate_proof_path_and_direction(
+                user_num_now)
+            zokrates_cmd.generate_proof(
+                root, leaf, direction, path, user_num_now)
+            user_token = untils.generate_user_key_format(
+                user_num_now, password)
+
+            return jsonify({
+                'success': True,
+                'token_content': user_token,
+                'filename': f'{username}_token.zys'
+            })
+
+        username = request.form.get('username', '').strip()
+        gender = request.form.get('gender', '').strip()
+        birth = request.form.get('birthdate', '').strip()
+        password = request.form.get('password', '').strip()
+
+        if not username or not gender or not birth or not password:
+            return render_template('register.html', error='请填写完整')
+
+        user_num_now = Users.user_num
+        user_hash = hashlib.sha256(
+            f'{user_num_now}{username}{gender}{birth}'.encode()).hexdigest()
+        MerkleTree.update_leaf(user_num_now, user_hash)
+        root_now = MerkleTree.get_merkle_root()
+        Users.register(username, gender, birth, root_now, password)
+        root, leaf, direction, path = MerkleTree.generate_proof_path_and_direction(
+            user_num_now)
+        zokrates_cmd.generate_proof(root, leaf, direction, path, user_num_now)
+        user_token = untils.generate_user_key_format(
+            user_num_now, password)
+
+        return render_template('register.html',
+                               success=True,
+                               token_content=user_token,
+                               filename=f'{username}_token.zys')
+
+    return render_template('register.html')
 
 
-# 关闭时自动保存数据
-app.on_shutdown(save_users)
+@app.route('/dashboard')
+def dashboard():
+    if 'userid' not in session or 'username' not in session:
+        return redirect(url_for('login'))
 
-# 启动应用
-ui.run(title="用户认证系统", storage_secret="test")
+    user_id = session['userid']
+    username = session['username']
+
+    # 渲染仪表盘页面，并传递用户信息
+    return render_template('dashboard.html', user_id=user_id, username=username)
+
+
+@app.route('/logout')
+def logout():
+    # 清除 session 中的用户信息
+    session.pop('userid', None)
+    session.pop('username', None)
+    return redirect(url_for('login'))
+
+
+if __name__ == '__main__':
+    app.run()
