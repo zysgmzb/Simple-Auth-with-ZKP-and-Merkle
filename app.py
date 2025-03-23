@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, render_template, request, session, send_file, jsonify
+from flask import Flask, redirect, url_for, render_template, request, session, jsonify
 from flask_wtf.csrf import CSRFProtect
 import os
 import zokrates_cmd
@@ -15,6 +15,11 @@ csrf = CSRFProtect(app)
 
 Users = user_manager.UserManager()
 MerkleTree = merkle_tree.MerkleTree()
+
+zokrates_cmd.setup('merkle.zok')
+anvil_process = onchain_verify.start_anvil()
+onchain_verify.compile_verifier()
+verifier_address = onchain_verify.deploy_zk_verifier()
 
 
 @app.route('/')
@@ -44,7 +49,7 @@ def login():
             token = file.read().decode('utf-8').strip()
             assert untils.check_format(token)
             abc, inputs = untils.decode_user_proof(token, password)
-            assert onchain_verify.verify(abc, inputs)
+            assert onchain_verify.verify(abc, inputs, verifier_address)
             user_root = untils.convert_u32_list_to_u256(inputs)
             user_root = hex(user_root)[2:].zfill(64)
             login_user = Users.get_user_by_root(user_root)
@@ -83,37 +88,13 @@ def register():
                 root, leaf, direction, path, user_num_now)
             user_token = untils.generate_user_key_format(
                 user_num_now, password)
+            zokrates_cmd.clear_user_proof(user_num_now)
 
             return jsonify({
                 'success': True,
                 'token_content': user_token,
                 'filename': f'{username}_token.zys'
             })
-
-        username = request.form.get('username', '').strip()
-        gender = request.form.get('gender', '').strip()
-        birth = request.form.get('birthdate', '').strip()
-        password = request.form.get('password', '').strip()
-
-        if not username or not gender or not birth or not password:
-            return render_template('register.html', error='请填写完整')
-
-        user_num_now = Users.user_num
-        user_hash = hashlib.sha256(
-            f'{user_num_now}{username}{gender}{birth}'.encode()).hexdigest()
-        MerkleTree.update_leaf(user_num_now, user_hash)
-        root_now = MerkleTree.get_merkle_root()
-        Users.register(username, gender, birth, root_now, password)
-        root, leaf, direction, path = MerkleTree.generate_proof_path_and_direction(
-            user_num_now)
-        zokrates_cmd.generate_proof(root, leaf, direction, path, user_num_now)
-        user_token = untils.generate_user_key_format(
-            user_num_now, password)
-
-        return render_template('register.html',
-                               success=True,
-                               token_content=user_token,
-                               filename=f'{username}_token.zys')
 
     return render_template('register.html')
 
@@ -126,17 +107,16 @@ def dashboard():
     user_id = session['userid']
     username = session['username']
 
-    # 渲染仪表盘页面，并传递用户信息
     return render_template('dashboard.html', user_id=user_id, username=username)
 
 
 @app.route('/logout')
 def logout():
-    # 清除 session 中的用户信息
     session.pop('userid', None)
     session.pop('username', None)
     return redirect(url_for('login'))
 
 
 if __name__ == '__main__':
+
     app.run()

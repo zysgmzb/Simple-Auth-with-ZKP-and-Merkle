@@ -81,13 +81,13 @@ def decode_user_proof(proof_content, password):
 def parse_proof_raw(proof_raw):
     if (len(proof_raw) != 32*16):
         return "Invalid proof"
-    a = [int.from_bytes(proof_raw[0:32], 'big'),
-         int.from_bytes(proof_raw[32:64], 'big')]
-    b = [[int.from_bytes(proof_raw[64:96], 'big'), int.from_bytes(
-        proof_raw[96:128], 'big')], [int.from_bytes(proof_raw[128:160], 'big'), int.from_bytes(proof_raw[160:192], 'big')]]
-    c = [int.from_bytes(proof_raw[192:224], 'big'),
-         int.from_bytes(proof_raw[224:256], 'big')]
+    a = (int.from_bytes(proof_raw[0:32], 'big'),
+         int.from_bytes(proof_raw[32:64], 'big'))
+    b = ([int.from_bytes(proof_raw[64:96], 'big'), int.from_bytes(
+        proof_raw[96:128], 'big')], [int.from_bytes(proof_raw[128:160], 'big'), int.from_bytes(proof_raw[160:192], 'big')])
+    c = (int.from_bytes(proof_raw[192:224], 'big'),
+         int.from_bytes(proof_raw[224:256], 'big'))
     inputs = [int.from_bytes(proof_raw[256+32*i:288+32*i], 'big')
               for i in range(8)]
-    abc = [a, b, c]
+    abc = (a, b, c)
     return abc, inputs
