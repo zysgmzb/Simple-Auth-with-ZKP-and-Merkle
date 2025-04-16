@@ -55,6 +55,7 @@ def login():
             login_user = Users.get_user_by_root(user_root)
             session['userid'] = login_user.user_id
             session['username'] = login_user.username
+            session['role'] = login_user.role
             return redirect(url_for('dashboard'))
 
         except Exception as e:
@@ -69,19 +70,19 @@ def register():
     if request.method == 'POST':
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             username = request.form.get('username', '').strip()
-            gender = request.form.get('gender', '').strip()
+            role = request.form.get('role', '').strip()
             birth = request.form.get('birthdate', '').strip()
             password = request.form.get('password', '').strip()
 
-            if not username or not gender or not birth or not password:
+            if not username or not role or not birth or not password:
                 return jsonify({'success': False, 'error': '请填写完整'})
 
             user_num_now = Users.user_num
             user_hash = hashlib.sha256(
-                f'{user_num_now}{username}{gender}{birth}'.encode()).hexdigest()
+                f'{user_num_now}{username}{role}{birth}'.encode()).hexdigest()
             MerkleTree.update_leaf(user_num_now, user_hash)
             root_now = MerkleTree.get_merkle_root()
-            Users.register(username, gender, birth, root_now, password)
+            Users.register(username, role, birth, root_now, password)
             root, leaf, direction, path = MerkleTree.generate_proof_path_and_direction(
                 user_num_now)
             zokrates_cmd.generate_proof(
@@ -101,13 +102,14 @@ def register():
 
 @app.route('/dashboard')
 def dashboard():
-    if 'userid' not in session or 'username' not in session:
+    if 'userid' not in session or 'username' not in session or 'role' not in session:
         return redirect(url_for('login'))
 
     user_id = session['userid']
     username = session['username']
+    role = "管理员" if session['role'] == "admin" else "普通用户"
 
-    return render_template('dashboard.html', user_id=user_id, username=username)
+    return render_template('dashboard.html', user_id=user_id, username=username, role=role)
 
 
 @app.route('/logout')

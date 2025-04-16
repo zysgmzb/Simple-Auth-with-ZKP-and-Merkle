@@ -4,10 +4,10 @@ import threading
 
 
 class User:
-    def __init__(self, user_id, username, gender, birth, root_now, password_hash):
+    def __init__(self, user_id, username, role, birth, root_now, password_hash):
         self.user_id = user_id
         self.username = username
-        self.gender = gender
+        self.role = role
         self.birth = birth
         self.root_now = root_now
         self.password_hash = password_hash
@@ -31,39 +31,39 @@ class UserManager:
             conn.execute('''CREATE TABLE IF NOT EXISTS users(
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             username TEXT NOT NULL,
-                            gender TEXT,
+                            role TEXT,
                             birth TEXT,
                             root_now TEXT,
                             password_hash TEXT NOT NULL);''')
 
-    def register(self, username, gender, birth, root_now, password):
+    def register(self, username, role, birth, root_now, password):
         if self.user_num >= self.MAX_USER_NUM:
             return False
         password_hash = hashlib.sha256(password.encode()).hexdigest()
         try:
             with self.get_conn() as conn:
-                conn.execute("INSERT INTO users (username, gender, birth, root_now, password_hash) VALUES (?, ?, ?, ?, ?)",
-                             (username, gender, birth, root_now, password_hash))
+                conn.execute("INSERT INTO users (username, role, birth, root_now, password_hash) VALUES (?, ?, ?, ?, ?)",
+                             (username, role, birth, root_now, password_hash))
             self.user_num += 1
             return True
         except sqlite3.IntegrityError:
             return False
 
-    def update_information(self, user_id, username, gender, birth, root, password=None):
+    def update_information(self, user_id, username, role, birth, root, password=None):
         user = self.get_user(user_id)
         if not user:
             return False
         new_password_hash = hashlib.sha256(
             password.encode()).hexdigest() if password else user.password_hash
         with self.get_conn() as conn:
-            conn.execute("UPDATE users SET username=?, gender=?, birth=?, root_now=?, password_hash=? WHERE id=?",
-                         (username, gender, birth, root, new_password_hash, user_id))
+            conn.execute("UPDATE users SET username=?, role=?, birth=?, root_now=?, password_hash=? WHERE id=?",
+                         (username, role, birth, root, new_password_hash, user_id))
         return True
 
     def get_user(self, user_id):
         with self.get_conn() as conn:
             cursor = conn.execute(
-                "SELECT id, username, gender, birth, root_now, password_hash FROM users WHERE id=?", (user_id,))
+                "SELECT id, username, role, birth, root_now, password_hash FROM users WHERE id=?", (user_id,))
             row = cursor.fetchone()
             if row is None:
                 return None
@@ -72,7 +72,7 @@ class UserManager:
     def get_user_by_root(self, user_root):
         with self.get_conn() as conn:
             cursor = conn.execute(
-                "SELECT id, username, gender, birth, root_now, password_hash FROM users WHERE root_now=?", (user_root,))
+                "SELECT id, username, role, birth, root_now, password_hash FROM users WHERE root_now=?", (user_root,))
             row = cursor.fetchone()
             if row is None:
                 return None

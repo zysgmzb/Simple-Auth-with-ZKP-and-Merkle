@@ -76,5 +76,5 @@ def verify(abc, inputs, verifier_address):
     Contract = web3.eth.contract(verifier_address, abi=contract_abi)
 
     verify_result = Contract.functions.verifyTx(abc, inputs).call()
-    print(verify_result)
+    # print(verify_result)
     return verify_result
