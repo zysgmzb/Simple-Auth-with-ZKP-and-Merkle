@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}更新用户信息{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <h1 class="title">更新用户信息</h1>
+
+    <div id="update-form">
+        <form method="POST" id="information-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- 新用户名 -->
+            <div class="form-group">
+                <div class="input-container">
+                    <input type="text" name="new_name" placeholder=" " autocomplete="off" class="input-field"
+                        id="name-input" value="{{ session.get('username', '') }}">
+                    <label for="name-input" class="input-label">新用户名</label>
+                    <div class="input-border"></div>
+                </div>
+            </div>
+
+            <!-- 新邮箱 -->
+            <div class="form-group">
+                <div class="input-container">
+                    <input type="email" name="new_mail" placeholder=" " autocomplete="off" class="input-field"
+                        id="mail-input">
+                    <label for="mail-input" class="input-label">新邮箱</label>
+                    <div class="input-border"></div>
+                </div>
+            </div>
+
+            <!-- 新密码 -->
+            <div class="form-group">
+                <div class="input-container">
+                    <input type="password" name="new_password" placeholder=" " autocomplete="off" required
+                        class="input-field" id="password-input">
+                    <label for="password-input" class="input-label">新密码（必填）</label>
+                    <div class="input-border"></div>
+                </div>
+            </div>
+
+            <button type="submit" class="button button-primary" id="update-button">
+                更新信息
+            </button>
+        </form>
+    </div>
+
+    <div id="generating-message" style="display: none;">
+        <div class="alert alert-info">
+            正在生成新令牌...
+        </div>
+    </div>
+
+    <div id="download-section" style="display: none;">
+        <div class="alert alert-success">
+            信息更新成功！请下载新令牌
+        </div>
+
+        <button onclick="downloadNewToken()" class="button button-primary" id="download-button">
+            ⬇ 下载令牌文件
+        </button>
+
+        <div class="divider">
+            <span>已保存？</span>
+            <a href="{{ url_for('login') }}" class="login-link">前往登录</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('information-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+
+        // 禁用按钮并显示加载状态
+        const updateButton = document.getElementById('update-button');
+        updateButton.disabled = true;
+        updateButton.textContent = '提交中...';
+        document.getElementById('generating-message').style.display = 'block';
+        document.getElementById('update-form').style.display = 'none';
+
+        try {
+            const response = await fetch('/user_update_information', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(new FormData(event.target))
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // 显示下载部分
+                document.getElementById('generating-message').style.display = 'none';
+                document.getElementById('download-section').style.display = 'block';
+
+                // 设置下载函数
+                window.downloadNewToken = function () {
+                    const blob = new Blob([result.token_content], { type: 'text/plain' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = result.filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                };
+            } else {
+                alert(result.error || '更新失败');
+                location.reload();
+            }
+        } catch (error) {
+            console.error('更新失败:', error);
+            alert('网络错误，请重试');
+            location.reload();
+        }
+    });
+</script>
+{% endblock %}

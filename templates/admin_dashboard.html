@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}仪表盘{% endblock %}
+{% block title %}管理员仪表盘{% endblock %}
 
 {% block content %}
 <div class="auth-card">
-    <h1 class="title">仪表盘</h1>
+    <h1 class="title">管理员仪表盘</h1>
 
     <!-- 用户信息卡片 -->
     <div class="info-card">
@@ -21,6 +21,9 @@
     <div class="action-buttons">
         <a href="{{ url_for('update_information') }}" class="action-btn edit-btn">
             <i class="icon">✏️</i>修改个人信息
+        </a>
+        <a href="{{ url_for('admin_check_information') }}" class="action-btn edit-btn">
+            <i class="icon">👀</i>查看所有用户信息
         </a>
         <a href="{{ url_for('logout') }}" class="action-btn logout-btn">
             <i class="icon">🏃</i>安全退出

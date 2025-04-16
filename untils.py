@@ -3,6 +3,7 @@ import zlib
 import gzip
 import zkproof_crypto
 import base64
+from email_validator import validate_email, EmailNotValidError
 
 
 def convert_u256_to_u32_list(input):
@@ -91,3 +92,11 @@ def parse_proof_raw(proof_raw):
               for i in range(8)]
     abc = (a, b, c)
     return abc, inputs
+
+
+def check_mail_format(mail):
+    try:
+        validate_email(mail)
+        return True
+    except EmailNotValidError:
+        return False

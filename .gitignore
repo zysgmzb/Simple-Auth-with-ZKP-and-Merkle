@@ -12,3 +12,4 @@ proving.key
 verification.key
 witness
 users.db
+verifier.sol

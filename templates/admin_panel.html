@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}管理员面板{% endblock %}
+
+{% block content %}
+<div class="auth-card" style="max-width: 1200px;">
+    <h1 class="title">用户信息管理</h1>
+
+    <div class="table-container">
+        <table class="user-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>角色</th>
+                    <th>邮箱</th>
+                    <th>Root Hash</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>
+                        <span class="badge {{ 'badge-admin' if user.role == 'admin' else 'badge-user' }}">
+                            {{ user.role }}
+                        </span>
+                    </td>
+                    <td>{{ user.mail }}</td>
+                    <td class="monospace">{{ user.root_now[:8] }}...{{ user.root_now[-4:] }}</td>
+                    <td>
+                        <button class="btn-download" onclick="handleDownload('{{ user.id }}', '{{ user.username }}')">
+                            <span class="btn-icon">⬇</span>
+                            <span class="btn-text">下载凭证</span>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function handleDownload(userId, username) {
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+
+        // 显示加载状态
+        btn.innerHTML = '<span class="btn-loader">⏳</span><span class="btn-text">生成中...</span>';
+        btn.disabled = true;
+
+        try {
+            const formData = new FormData();
+            formData.append('userid', userId);
+            formData.append('csrf_token', '{{ csrf_token() }}');
+
+            const response = await fetch('/admin_download_user_token', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // 创建下载
+                const blob = new Blob([result.token_content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = result.filename || `${username}_token.zys`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } else {
+                alert(`下载失败: ${result.error || '未知错误'}`);
+            }
+        } catch (error) {
+            alert(`请求失败: ${error.message}`);
+        } finally {
+            // 恢复按钮状态
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+</script>
+
+<style>
+    /* 表格容器 */
+    .table-container {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        overflow-x: auto;
+        margin-top: 1.5rem;
+    }
+
+    /* 表格样式 */
+    .user-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .user-table th,
+    .user-table td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .user-table th {
+        background: #f8fafc;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
+    }
+
+    /* 角色徽章 */
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .badge-admin {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .badge-user {
+        background: #ecfccb;
+        color: #3f6212;
+    }
+
+    /* 等宽字体 */
+    .monospace {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
+    /* 下载按钮 */
+    .btn-download {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem 0.8rem;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .btn-download:hover {
+        background: #bae6fd;
+        transform: translateY(-1px);
+    }
+
+    .btn-download:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .btn-icon {
+        font-size: 0.9rem;
+    }
+
+    .btn-text {
+        margin-left: 0.25rem;
+    }
+
+    .btn-loader {
+        animation: spin 1s linear infinite;
+        display: inline-block;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* 响应式调整 */
+    @media (max-width: 768px) {
+        .auth-card {
+            padding: 1rem;
+        }
+
+        .user-table th,
+        .user-table td {
+            padding: 0.75rem;
+        }
+
+        .btn-download {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.8rem;
+        }
+    }
+</style>
+{% endblock %}

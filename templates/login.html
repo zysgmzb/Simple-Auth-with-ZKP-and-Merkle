@@ -21,6 +21,7 @@
                 <span id="file-text">点击上传令牌文件</span>
                 <span id="file-name" class="file-name"></span>
             </label>
+            <div class="file-hint">令牌丢失请联系管理员</div>
         </div>
 
         <!-- 密码输入框 -->
@@ -72,5 +73,52 @@
         }
     });
 </script>
+
+<style>
+    .file-upload {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .file-hint {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        text-align: center;
+        margin-top: 0.5rem;
+        font-style: italic;
+    }
+
+    /* 保持原有文件上传样式 */
+    .file-upload input {
+        opacity: 0;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    .file-upload label {
+        display: block;
+        padding: 1.5rem;
+        border: 2px dashed #e2e8f0;
+        border-radius: 8px;
+        text-align: center;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .file-upload label:hover {
+        border-color: #6366f1;
+        background: rgba(99, 102, 241, 0.05);
+    }
+
+    .file-name {
+        display: block;
+        margin-top: 0.5rem;
+        color: #6366f1;
+        font-size: 0.9rem;
+    }
+</style>
 </div>
 {% endblock %}
