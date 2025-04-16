@@ -8,8 +8,8 @@ out
 out.r1cs
 out.wtns
 proving.key
+*.sol
 *.json
 verification.key
 witness
 users.db
-verifier.sol
