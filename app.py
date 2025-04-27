@@ -7,6 +7,7 @@ import user_manager
 import merkle_tree
 import hashlib
 import onchain_verify
+import uuid
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -20,6 +21,11 @@ zokrates_cmd.setup('merkle.zok')
 anvil_process = onchain_verify.start_anvil()
 onchain_verify.compile_verifier()
 verifier_address = onchain_verify.deploy_zk_verifier()
+
+invite_code = [str(uuid.uuid4()) for _ in range(3)]
+with open('invite_code.txt', 'w') as f:
+    for code in invite_code:
+        f.write(code + '\n')
 
 
 @app.route('/')
@@ -70,15 +76,23 @@ def register():
     if request.method == 'POST':
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             username = request.form.get('username', '').strip()
-            role = request.form.get('role', '').strip()
+            invitecode = request.form.get('invitecode', '').strip()
             mail = request.form.get('mail', '').strip()
             password = request.form.get('password', '').strip()
 
-            if not username or not role or not mail or not password:
+            if not username or not mail or not password:
                 return jsonify({'success': False, 'error': '请填写完整'})
 
             if not untils.check_mail_format(mail):
                 return jsonify({'success': False, 'error': '无效的邮箱地址'})
+
+            if (invitecode != "" and invitecode in invite_code):
+                role = 'admin'
+                invite_code.remove(invitecode)
+            elif (invitecode != "" and invitecode not in invite_code):
+                return jsonify({'success': False, 'error': '邀请码无效'})
+            else:
+                role = 'user'
 
             user_num_now = Users.user_num
             user_hash = hashlib.sha256(
